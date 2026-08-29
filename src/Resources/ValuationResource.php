@@ -17,6 +17,7 @@ use Filament\Tables\Table;
 use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
 use Liberu\RealEstate\Valuations\Application\CompleteValuation;
+use Liberu\RealEstate\Valuations\Application\CalculateMortgage;
 use Liberu\RealEstate\Valuations\Application\ConvertValuation;
 use Liberu\RealEstate\Valuations\Application\GeneratePropertyValuation;
 use Liberu\RealEstate\Valuations\Application\ScheduleValuation;
@@ -79,6 +80,18 @@ final class ValuationResource extends Resource
                             ->title('Estimated value: '.number_format((float) $estimate['estimated_value'], 2))
                             ->warning()
                             ->send();
+                    }),
+                Action::make('mortgage_estimate')
+                    ->label('Estimate mortgage')
+                    ->form([
+                        TextInput::make('property_price')->required()->numeric()->minValue(0.01),
+                        TextInput::make('loan_amount')->required()->numeric()->minValue(0.01),
+                        TextInput::make('interest_rate')->required()->numeric()->minValue(0)->maxValue(100),
+                        TextInput::make('loan_term_years')->required()->numeric()->minValue(1)->maxValue(50)->default(25),
+                    ])
+                    ->action(function (array $data): void {
+                        $result = app(CalculateMortgage::class)->handle((float) $data['property_price'], (float) $data['loan_amount'], (float) $data['interest_rate'], (int) $data['loan_term_years']);
+                        Notification::make()->title('Estimated payment: '.number_format((float) $result['monthly_payment'], 2).' per month')->warning()->send();
                     }),
                 DeleteAction::make(),
             ])->defaultSort('created_at', 'desc');
